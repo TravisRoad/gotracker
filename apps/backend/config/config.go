@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log"
 	"os"
 
 	"gopkg.in/yaml.v2"
@@ -20,22 +21,24 @@ func ConfigFromFile(path string) (*Config, error) {
 	conf := &Config{}
 
 	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
+	if err == nil {
+		defer file.Close()
+
+		d := yaml.NewDecoder(file)
+
+		if err := d.Decode(&conf); err != nil {
+			return nil, err
+		}
+
+	} else {
+		log.Println("failed to open config file: ", err.Error())
+		log.Println("use default config")
 	}
-	defer file.Close()
-
-	d := yaml.NewDecoder(file)
-
-	if err := d.Decode(&conf); err != nil {
-		return nil, err
-	}
-
-	conf.setDefaults()
+	conf.SetDefaults()
 	return conf, nil
 }
 
-func (c *Config) setDefaults() {
+func (c *Config) SetDefaults() {
 	if c.Port == "" {
 		c.Port = "8080"
 	}
@@ -43,11 +46,9 @@ func (c *Config) setDefaults() {
 		c.PolicyPath = "./policy.csv"
 	}
 	if c.TokenLifeSpan == 0 {
-		// c.TokenLifeSpan = 3_600_000 // us 1 hour
-		c.TokenLifeSpan = 6_000
+		c.TokenLifeSpan = 3_600_000 // us 1 hour
 	}
 	if c.JwtSecret == "" {
 		c.JwtSecret = "secret" // default
 	}
-
 }

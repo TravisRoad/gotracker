@@ -7,5 +7,5 @@ type Collection struct {
 	Name      string
 	UserID    uint
 	User      User
-	Metadatas []*Metadata `gorm:"many1many:collection_metadata;"`
+	Metadatas []*Metadata `gorm:"many2many:collection_metadata;"`
 }

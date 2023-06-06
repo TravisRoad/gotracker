@@ -17,7 +17,7 @@ func ConnectSqlite(sqlitePath string) (*gorm.DB, error) {
 }
 
 func migrate(db *gorm.DB) {
-	DB.AutoMigrate(
+	db.AutoMigrate(
 		&User{}, &Review{}, &Collection{}, &Seen{},
 		&Metadata{}, &Keyword{},
 		&Movie{}, &Book{}, &Game{}, &Manga{}, &Policy{})

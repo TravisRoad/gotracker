@@ -11,22 +11,30 @@ import (
 	jwt "github.com/golang-jwt/jwt/v5"
 )
 
-func GenerateToken(userID uint) (string, error) {
+type JWTAuthHelper struct {
+	cf *config.Config
+}
+
+func NewJWTAuthHelper(cf *config.Config) *JWTAuthHelper {
+	return &JWTAuthHelper{cf}
+}
+
+func (h *JWTAuthHelper) GenerateToken(userID uint) (string, error) {
 	claims := jwt.MapClaims{}
 	claims["user_id"] = userID
-	claims["exp"] = time.Now().Add(time.Microsecond * time.Duration(config.Conf.TokenLifeSpan)).Unix()
+	claims["exp"] = time.Now().Add(time.Millisecond * time.Duration(h.cf.TokenLifeSpan)).Unix()
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	return token.SignedString([]byte(config.Conf.JwtSecret))
+	return token.SignedString([]byte(h.cf.JwtSecret))
 }
 
-func TokenStringValid(tokenString string) error {
+func (h *JWTAuthHelper) TokenStringValid(tokenString string) error {
 	_, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return []byte(config.Conf.JwtSecret), nil
+		return []byte(h.cf.JwtSecret), nil
 	})
 	if err != nil {
 		return err
@@ -47,13 +55,13 @@ func ExtractToken(c *gin.Context) string {
 	return ""
 }
 
-func ExtractTokenID(c *gin.Context) (uint, error) {
+func (h *JWTAuthHelper) ExtractTokenID(c *gin.Context) (uint, error) {
 	tokenString := ExtractToken(c)
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return []byte(config.Conf.JwtSecret), nil
+		return []byte(h.cf.JwtSecret), nil
 	})
 	if err != nil {
 		return 0, err

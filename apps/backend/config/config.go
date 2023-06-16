@@ -7,20 +7,19 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var Conf *Config
-
 type Config struct {
 	Port          string `yaml:"port"`
 	DbPath        string `yaml:"dbPath"`
 	PolicyPath    string `yaml:"policyPath"`
 	TokenLifeSpan int    `yaml:"tokenLifespan"`
 	JwtSecret     string `yaml:"jwtSecret"`
+	TmdbKey       string `yaml:"tmdbKey"`
 }
 
-func ConfigFromFile(path string) (*Config, error) {
+func ConfigFromFile(configPath string) (*Config, error) {
 	conf := &Config{}
 
-	file, err := os.Open(path)
+	file, err := os.Open(configPath)
 	if err == nil {
 		defer file.Close()
 
@@ -29,16 +28,16 @@ func ConfigFromFile(path string) (*Config, error) {
 		if err := d.Decode(&conf); err != nil {
 			return nil, err
 		}
-
 	} else {
 		log.Println("failed to open config file: ", err.Error())
 		log.Println("use default config")
 	}
-	conf.SetDefaults()
+	log.Println(conf.TmdbKey)
+	conf.setDefaults()
 	return conf, nil
 }
 
-func (c *Config) SetDefaults() {
+func (c *Config) setDefaults() {
 	if c.Port == "" {
 		c.Port = "8080"
 	}

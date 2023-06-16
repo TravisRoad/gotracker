@@ -1,2 +1,13 @@
 *.db
 *.sqlite
+
+go.work.sum
+
+thunder-tests
+
+nosync
+
+__debug_bin
+apps/backend/.test.env
+
+.vscode

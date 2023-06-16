@@ -6,36 +6,21 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"os/exec"
 	"testing"
 	"travisroad/gotracker/auth"
-	"travisroad/gotracker/config"
+	"travisroad/gotracker/di"
 	"travisroad/gotracker/models"
 	"travisroad/gotracker/route"
+	"travisroad/gotracker/utils"
 
 	"github.com/brianvoe/gofakeit/v6"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMain(m *testing.M) {
-	preTest()
+	utils.PreTest()
 	prepareData()
 	m.Run()
-}
-
-func preTest() {
-	dbFile := "/tmp/sqlmock_db.sqlite"
-	exec.Command("rm", "-f", dbFile).Run()
-
-	config.Conf = &config.Config{}
-	config.Conf.SetDefaults()
-
-	db, err := models.ConnectSqlite(dbFile)
-	if err != nil {
-		log.Fatalf("failed to connect database: %s", err.Error())
-	}
-	models.DB = db
-
 }
 
 func prepareData() {
@@ -62,33 +47,36 @@ func prepareData() {
 func TestLogin(t *testing.T) {
 	r := route.RouteInit()
 
-	req, err := http.NewRequest("POST",
-		"/api/auth/login",
-		bytes.NewReader([]byte(`{"username": "foo", "password": "bar"}`)))
-	if err != nil {
-		t.Fatal(err)
-	}
+	di.C.Invoke(func(jh *auth.JWTAuthHelper) {
+		req, err := http.NewRequest("POST",
+			"/api/auth/login",
+			bytes.NewReader([]byte(`{"username": "foo", "password": "bar"}`)))
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	rr := httptest.NewRecorder()
+		rr := httptest.NewRecorder()
 
-	r.ServeHTTP(rr, req)
+		r.ServeHTTP(rr, req)
 
-	if status := rr.Code; status != http.StatusOK {
-		t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
-	}
+		if status := rr.Code; status != http.StatusOK {
+			t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+		}
 
-	var data map[string]interface{}
-	if err := json.NewDecoder(rr.Body).Decode(&data); err != nil {
-		t.Fatal("response body is not a json")
-	}
-	tokenString, ok := data["token"].(string)
-	if !ok {
-		t.Fatal("there is no \"token\" field")
-	}
+		var data map[string]interface{}
+		if err := json.NewDecoder(rr.Body).Decode(&data); err != nil {
+			t.Fatal("response body is not a json")
+		}
+		tokenString, ok := data["token"].(string)
+		if !ok {
+			t.Fatal("there is no \"token\" field")
+		}
 
-	if err := auth.TokenStringValid(tokenString); err != nil {
-		t.Fatal(err)
-	}
+		if err := jh.TokenStringValid(tokenString); err != nil {
+			t.Fatal(err)
+		}
+
+	})
 }
 
 func TestLoginFail(t *testing.T) {

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http"
 	"regexp"
-	"travisroad/gotracker/auth"
 	"travisroad/gotracker/models"
 
 	"github.com/gin-gonic/gin"
@@ -35,13 +34,14 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	token, err := auth.GenerateToken(uid)
+	token, err := jwtHelper.GenerateToken(uid)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "success", "token": token})
+
 }
 
 type RegisterInput struct {

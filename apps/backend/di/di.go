@@ -42,6 +42,15 @@ func InitDI(configPath string) {
 		panic(msg)
 	}
 
+	err = c.Provide(func(tm *services.TmdbService) *services.MovieSourceService {
+		svc := services.MovieSourceService(tm)
+		return &svc
+	})
+	if err != nil {
+		msg := fmt.Sprintf("tmdbService cast to MovieSourceService %s", err.Error())
+		panic(msg)
+	}
+
 	err = c.Provide(services.NewMovieService)
 	if err != nil {
 		msg := fmt.Sprintf("tmdbService init %s", err.Error())

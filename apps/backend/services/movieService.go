@@ -13,9 +13,9 @@ type MovieService struct {
 	mss MovieSourceService
 }
 
-func NewMovieService(ts *TmdbService) *MovieService {
+func NewMovieService(mss *MovieSourceService) *MovieService {
 	return &MovieService{
-		mss: ts,
+		mss: *mss,
 	}
 }
 

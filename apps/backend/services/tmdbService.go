@@ -18,8 +18,7 @@ type TmdbService struct {
 
 func NewTmdbService(cf *config.Config) *TmdbService {
 	c := tmdb.Config{
-		APIKey: cf.TmdbKey,
-		// APIKey:   "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0YjZlODIzZWVjMmRhZDlmYmJjY2RiMDgyOWZlOTk5ZCIsInN1YiI6IjY0ODA1M2I0ZTI3MjYwMDEwNzIwMjE4YSIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.jVHCmo1qQ9PR2u4bpIDmHYj0q1nfhEJNn7dC4D6y9h8",
+		APIKey:   cf.TmdbKey,
 		Proxies:  nil,
 		UseProxy: false, // TODO: add proxy
 	}

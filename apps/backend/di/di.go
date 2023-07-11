@@ -53,7 +53,13 @@ func InitDI(configPath string) {
 
 	err = c.Provide(services.NewMovieService)
 	if err != nil {
-		msg := fmt.Sprintf("tmdbService init %s", err.Error())
+		msg := fmt.Sprintf("MovieService init %s", err.Error())
+		panic(msg)
+	}
+
+	err = c.Provide(services.NewReviewService)
+	if err != nil {
+		msg := fmt.Sprintf("ReviewService init %s", err.Error())
 		panic(msg)
 	}
 

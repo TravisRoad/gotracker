@@ -5,7 +5,9 @@ import "gorm.io/gorm"
 type Movie struct {
 	gorm.Model
 	Time       int
-	MetadataID uint
+	Source     string // dataSource name, like douban, tmdb etc.
+	Identifier string
+	MetadataID uint `gorm:"index"`
 	Metadata   Metadata
 }
 

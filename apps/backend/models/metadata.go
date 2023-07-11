@@ -11,7 +11,6 @@ type Metadata struct {
 	PublishYear   string
 	PublishData   string
 	ImageUrl      string
-	Identifier    string
 	Creators      string
 	SourceUrl     string
 	TitleCN       string

@@ -10,11 +10,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type LoginInput struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
-}
-
 func Login(c *gin.Context) {
 	var input LoginInput
 
@@ -42,11 +37,6 @@ func Login(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "success", "token": token})
 
-}
-
-type RegisterInput struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
 }
 
 func Register(c *gin.Context) {

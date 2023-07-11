@@ -1,12 +1,17 @@
 package controllers
 
 import (
+	"bytes"
+	"encoding/gob"
 	"net/http"
+	"strconv"
+	"travisroad/gotracker/models"
 
 	"github.com/gin-gonic/gin"
 )
 
 // GET /api/search/movie?q=&lang=
+// lang: en_US zh_CN
 func Search(c *gin.Context) {
 	query := c.Query("q")
 	lang := c.Query("lang")
@@ -22,4 +27,74 @@ func Search(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, r)
+}
+
+// AddMovie is a Go function that adds a movie.
+//
+// c: A pointer to a gin.Context object.
+// The function does not return anything.
+func AddMovieReview(c *gin.Context) {
+	var input AddMovieReviewInput
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	id, err := strconv.Atoi(input.Id)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	m, err := movieService.GetMovieMetaData(id, input.Source, map[string]string{})
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	uidValue, ok := c.Get("uid")
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+	uid, ok := uidValue.(uint)
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var rating float32 = 0.0
+	for _, v := range input.Rank {
+		x, err := strconv.Atoi(v)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		rating += float32(x)
+	}
+	float32Rating := rating / float32(len(input.Rank)) / 2.0
+
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err = enc.Encode(input.Rank)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "gob: " + err.Error()})
+		return
+	}
+
+	review := &models.Review{
+		Rating:      float32Rating,
+		ExtraRating: buf.Bytes(),
+		Content:     input.Content,
+		MetadataID:  m.MetadataID,
+		UserID:      uid,
+	}
+
+	_, err = review.Save()
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "success"})
 }

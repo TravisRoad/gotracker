@@ -8,20 +8,15 @@ import (
 	"net/http/httptest"
 	"testing"
 	"travisroad/gotracker/auth"
+	"travisroad/gotracker/controllers"
 	"travisroad/gotracker/di"
 	"travisroad/gotracker/models"
-	"travisroad/gotracker/route"
 	"travisroad/gotracker/utils"
 
 	"github.com/brianvoe/gofakeit/v6"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )
-
-func TestMain(m *testing.M) {
-	utils.PreTest()
-	prepareData()
-	m.Run()
-}
 
 func prepareData() {
 	// init data
@@ -45,185 +40,166 @@ func prepareData() {
 }
 
 func TestLogin(t *testing.T) {
-	r := route.RouteInit()
+	utils.PreTest()
+	user := &models.User{
+		Username: "testlogin",
+		Password: "bar",
+	}
+	user.Save()
+
+	tests := []struct {
+		name string
+		body controllers.LoginInput
+		code int
+	}{
+		{
+			name: "success",
+			body: controllers.LoginInput{
+				Username: "testlogin",
+				Password: "bar",
+			},
+			code: http.StatusOK,
+		},
+		{
+			name: "password wrong",
+			body: controllers.LoginInput{
+				Username: "testlogin",
+				Password: "wrongpassword",
+			},
+			code: http.StatusBadRequest,
+		},
+		{
+			name: "no such username",
+			body: controllers.LoginInput{
+				Username: "no_such_username",
+				Password: "bar",
+			},
+			code: http.StatusBadRequest,
+		},
+	}
 
 	di.C.Invoke(func(jh *auth.JWTAuthHelper) {
-		req, err := http.NewRequest("POST",
-			"/api/auth/login",
-			bytes.NewReader([]byte(`{"username": "foo", "password": "bar"}`)))
-		if err != nil {
-			t.Fatal(err)
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				w := httptest.NewRecorder()
+				c, _ := gin.CreateTestContext(w)
+
+				bodyBytes, err := json.Marshal(tt.body)
+				if err != nil {
+					t.Errorf(err.Error())
+				}
+
+				c.Request, _ = http.NewRequest("POST", "/api/login", bytes.NewBuffer(bodyBytes))
+				c.Request.Header.Set("Content-Type", "application/json")
+
+				controllers.Login(c)
+
+				assert.Equal(t,
+					tt.code,
+					w.Code,
+					"handler returned wrong status code: got %v want %v", w.Code, tt.code)
+
+				if w.Code != http.StatusOK {
+					return
+				}
+
+				var data map[string]interface{}
+				if err := json.NewDecoder(w.Body).Decode(&data); err != nil {
+					t.Fatal("response body is not a json")
+				}
+				tokenString, ok := data["token"].(string)
+				if !ok {
+					t.Fatal("there is no \"token\" field")
+				}
+				if err := jh.TokenStringValid(tokenString); err != nil {
+					t.Fatal(err)
+				}
+			})
 		}
-
-		rr := httptest.NewRecorder()
-
-		r.ServeHTTP(rr, req)
-
-		if status := rr.Code; status != http.StatusOK {
-			t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
-		}
-
-		var data map[string]interface{}
-		if err := json.NewDecoder(rr.Body).Decode(&data); err != nil {
-			t.Fatal("response body is not a json")
-		}
-		tokenString, ok := data["token"].(string)
-		if !ok {
-			t.Fatal("there is no \"token\" field")
-		}
-
-		if err := jh.TokenStringValid(tokenString); err != nil {
-			t.Fatal(err)
-		}
-
 	})
-}
-
-func TestLoginFail(t *testing.T) {
-	r := route.RouteInit()
-
-	req, err := http.NewRequest("POST",
-		"/api/auth/login",
-		bytes.NewReader([]byte(`{"username": "foofoo", "password": "barbar"}`)))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	rr := httptest.NewRecorder()
-
-	r.ServeHTTP(rr, req)
-
-	if status := rr.Code; status != http.StatusBadRequest {
-		t.Fatalf("handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
-	}
-
-	var data map[string]interface{}
-	if err := json.NewDecoder(rr.Body).Decode(&data); err != nil {
-		t.Fatal("response body is not a json")
-	}
-	t.Log(data)
-	errorMsg, ok := data["error"].(string)
-	if !ok {
-		t.Fatal("there is no \"srrorMsg\" field")
-	}
-
-	assert.Equal(t, errorMsg, "record not found")
-
+	utils.PostTest()
 }
 
 func TestRegister(t *testing.T) {
-	r := route.RouteInit()
+	utils.PreTest()
+	user := &models.User{
+		Username: "testregister-duplicated",
+		Password: "bar",
+	}
+	user.Save()
 
-	req, err := http.NewRequest("POST",
-		"/api/auth/register",
-		bytes.NewReader([]byte(`{"username": "foofoo", "password": "barbar"}`)))
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name    string
+		body    controllers.RegisterInput
+		code    int
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "success",
+			body: controllers.RegisterInput{
+				Username: "testregister",
+				Password: "bar",
+			},
+			code:    http.StatusOK,
+			wantErr: false,
+		},
+		{
+			name: "duplicated",
+			body: controllers.RegisterInput{
+				Username: "testregister-duplicated",
+				Password: "bar",
+			},
+			code:    http.StatusBadRequest,
+			wantErr: true,
+			errMsg:  "username is already taken",
+		},
+		{
+			name: "invalid username",
+			body: controllers.RegisterInput{
+				Username: "f**k",
+				Password: "bar",
+			},
+			code:    http.StatusBadRequest,
+			wantErr: true,
+			errMsg:  "username is invalid",
+		},
 	}
 
-	rr := httptest.NewRecorder()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
 
-	r.ServeHTTP(rr, req)
+			bodyBytes, err := json.Marshal(tt.body)
+			if err != nil {
+				t.Errorf(err.Error())
+			}
 
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+			c.Request, _ = http.NewRequest("POST", "/api/register", bytes.NewBuffer(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+
+			controllers.Register(c)
+
+			if w.Code != tt.code {
+				t.Errorf("handler returned wrong status code: got %v want %v", w.Code, tt.code)
+			}
+
+			if tt.wantErr {
+				var data map[string]interface{}
+
+				if err := json.NewDecoder(w.Body).Decode(&data); err != nil {
+					t.Fatal("response body is not a json")
+				}
+				error, ok := data["error"].(string)
+				if !ok {
+					t.Fatal("there is no \"error\" field")
+				}
+
+				assert.Equal(t, error, tt.errMsg)
+			}
+
+		})
 	}
-
-	var count int64
-	if err := models.DB.Model(&models.User{}).Where("username = ?", "foofoo").Count(&count).Error; err != nil {
-		t.Fatal(err)
-	}
-	if count == 0 {
-		t.Fatal("there is no user")
-	}
-
-	var data map[string]interface{}
-
-	if err := json.NewDecoder(rr.Body).Decode(&data); err != nil {
-		t.Fatal("response body is not a json")
-	}
-
-	message, ok := data["message"].(string)
-	if !ok {
-		t.Fatal("there is no \"message\" field")
-	}
-	assert.Equal(t, message, "success")
-}
-
-func TestRegisterUsernameTaken(t *testing.T) {
-	r := route.RouteInit()
-
-	req, err := http.NewRequest("POST",
-		"/api/auth/register",
-		bytes.NewReader([]byte(`{"username": "foo", "password": "bar"}`)))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	rr := httptest.NewRecorder()
-
-	r.ServeHTTP(rr, req)
-
-	if status := rr.Code; status != http.StatusBadRequest {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
-	}
-
-	var count int64
-	if err := models.DB.Model(&models.User{}).Where("username = ?", "foo").Count(&count).Error; err != nil {
-		t.Fatal(err)
-	}
-	if count != 1 {
-		t.Fatal("there are duplicated users")
-	}
-
-	var data map[string]interface{}
-
-	if err := json.NewDecoder(rr.Body).Decode(&data); err != nil {
-		t.Fatal("response body is not a json")
-	}
-
-	error, ok := data["error"].(string)
-	if !ok {
-		t.Fatal("there is no \"error\" field")
-	}
-	assert.Equal(t, error, "username is already taken")
-}
-
-func TestRegisterUsernameNotValid(t *testing.T) {
-	r := route.RouteInit()
-
-	req, err := http.NewRequest("POST",
-		"/api/auth/register",
-		bytes.NewReader([]byte(`{"username": "12", "password": "bar"}`)))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	rr := httptest.NewRecorder()
-
-	r.ServeHTTP(rr, req)
-
-	if status := rr.Code; status != http.StatusBadRequest {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusBadRequest)
-	}
-
-	var count int64
-	if err := models.DB.Model(&models.User{}).Where("username = ?", "foo").Count(&count).Error; err != nil {
-		t.Fatal(err)
-	}
-	if count != 1 {
-		t.Fatal("there are duplicated users")
-	}
-
-	var data map[string]interface{}
-
-	if err := json.NewDecoder(rr.Body).Decode(&data); err != nil {
-		t.Fatal("response body is not a json")
-	}
-
-	error, ok := data["error"].(string)
-	if !ok {
-		t.Fatal("there is no \"error\" field")
-	}
-	assert.Equal(t, error, "username is invalid")
+	utils.PostTest()
 }

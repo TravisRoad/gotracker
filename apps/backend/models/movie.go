@@ -11,9 +11,9 @@ type Movie struct {
 	Metadata   Metadata
 }
 
-func (m *Movie) Save() (*Movie, error) {
+func (m *Movie) Save() error {
 	if err := DB.Save(m).Error; err != nil {
-		return m, err
+		return err
 	}
-	return m, nil
+	return nil
 }

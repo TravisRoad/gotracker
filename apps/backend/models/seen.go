@@ -8,10 +8,21 @@ import (
 
 type Seen struct {
 	gorm.Model
-	Progress   float32
+	Status     uint
+	Progress   uint
 	FinshedAt  time.Time
+	Identifier string
+	Source     string
+	Variety    string
 	UserID     uint
 	User       User
 	MetadataID uint
 	Metadata   Metadata
+}
+
+func (s *Seen) Save() error {
+	if err := DB.Save(s).Error; err != nil {
+		return err
+	}
+	return nil
 }

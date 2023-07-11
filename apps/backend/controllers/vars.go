@@ -9,12 +9,14 @@ var (
 	jwtHelper     *auth.JWTAuthHelper
 	movieService  *services.MovieService
 	reviewService *services.ReviewService
+	seenService   *services.SeenService
 )
 
-func Inject(jh *auth.JWTAuthHelper, ms *services.MovieService, rs *services.ReviewService) {
+func Inject(jh *auth.JWTAuthHelper, ms *services.MovieService, rs *services.ReviewService, ss *services.SeenService) {
 	jwtHelper = jh
 	movieService = ms
 	reviewService = rs
+	seenService = ss
 }
 
 type AddMovieReviewInput struct {
@@ -32,4 +34,16 @@ type LoginInput struct {
 type RegisterInput struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
+}
+
+type MovieReviewsOutput struct {
+	Reviews struct {
+		Rating      float32  `json:"rank"`
+		ExtraRating []string `json:"extra_rank"`
+		Content     string   `json:"content"`
+		Movie       struct {
+			Title       string `json:"title"`
+			Description string `json:"string"`
+		} `json:"movie"`
+	} `json:"reviews"`
 }

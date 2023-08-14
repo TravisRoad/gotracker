@@ -1,0 +1,21 @@
+port: 8080
+
+db:
+  type: sqlite
+  mysql:
+    path: localhost
+    port: 3306
+    db-name: database
+    username: travis
+    password: passwd
+  sqlite:
+    path: database.sqlite
+
+redis:
+  db: 5
+  addr: localhost:6379
+  password:
+
+tmdb:
+  api-key:
+
